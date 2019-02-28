@@ -1,15 +1,16 @@
 # Matrix
 
 Matrix class used to store and operate on matricies.
+The indices of the elements are zero indexed.
 
 ## Usage
 
-The dimensions od the matrix are imutable and must be known when calling any
+The dimensions of the matrix are imutable and must be known when calling any
 of the constructors.
 All basic getters & setters are implemented.
 Many methods (and constructors) use the Java functional interfaces for simple
 ways to initialize, set or modify the elements of the matrix.
-This class has already implements basic mathematical operations:
+This class already implements basic mathematical operations:
  - Addition
  - Subtraction
  - Scalar multiplication
