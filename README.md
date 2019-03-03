@@ -24,7 +24,8 @@ the apply methods return their result as a new matrix.
 
 ## Getting Started
 
-Simply download this repository and add it to your project! Done!
+Simply download this repository and add it to your project as a new package!
+Done!
 
 ## TODO
 
@@ -35,7 +36,7 @@ Simply download this repository and add it to your project! Done!
 
 MIT License
 
-Copyright (c) 2019 Sebastian G�ssl
+Copyright (c) 2019 Sebastian Gössl
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
