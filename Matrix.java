@@ -80,6 +80,18 @@ public class Matrix implements Iterable<Double> {
   
   /**
    * Constructs a new matrix with <code>height</code> rows and
+   * <code>width</code> columns and fills it with the given value.
+   * 
+   * @param height number of rows
+   * @param width number of columns
+   * @param value value to fill the matrix with
+   */
+  public Matrix(int height, int width, double value) {
+    this(height, width, () -> (value));
+  }
+  
+  /**
+   * Constructs a new matrix with <code>height</code> rows and
    * <code>width</code> columns and fills it with the elements returned from
    * the given supplier.
    * 
@@ -379,40 +391,45 @@ public class Matrix implements Iterable<Double> {
   
   
   /**
+   * Iterator which iterates over all elements column-row wise.
+   */
+  private class MatrixIterator implements PrimitiveIterator.OfDouble {
+    /**
+     * Current position of the iterator.
+     */
+    private int i=0, j=0;
+    
+    @Override
+    public boolean hasNext() {
+      return j<getHeight() && i<getWidth();
+    }
+    
+    @Override
+    public double nextDouble() {
+      if(!hasNext()) {
+        throw new NoSuchElementException();
+      }
+      
+      
+      final double element = get(j, i);
+      
+      if(++i >= getWidth()) {
+        i = 0;
+        j++;
+      }
+      
+      return element;
+    }
+  };
+  
+  /**
    * Returns and iterator which iterates over all elements column-row wise.
    * 
    * @return iterator which iterates over all elements column-row wise
    */
   @Override
   public PrimitiveIterator.OfDouble iterator() {
-    return new PrimitiveIterator.OfDouble() {
-      /**
-       * Current position of the iterator.
-       */
-      private int i=0, j=0;
-      
-      @Override
-      public boolean hasNext() {
-        return j<getHeight() && i<getWidth();
-      }
-      
-      @Override
-      public double nextDouble() {
-        if(!hasNext()) {
-          throw new NoSuchElementException();
-        }
-        
-        
-        final double element = get(j, i);
-        
-        if(++i >= getWidth()) {
-          i = 0;
-          j++;
-        }
-        
-        return element;
-      }
-    };
+    return new MatrixIterator();
   }
   
   /**
