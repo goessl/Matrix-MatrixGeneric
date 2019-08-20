@@ -27,23 +27,23 @@
 package matrix;
 
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.NoSuchElementException;
-import java.util.PrimitiveIterator;
-import java.util.function.DoubleBinaryOperator;
-import java.util.function.DoubleSupplier;
-import java.util.function.DoubleUnaryOperator;
-import java.util.function.ToDoubleBiFunction;
+import java.util.function.BiFunction;
+import java.util.function.BinaryOperator;
+import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 
 
 
 /**
- * Matrix class used to store and operate on matricies.
+ * Generic matrix class used to store and operate on generic matricies.
  * The indices of the elements are zero indexed.
  * 
  * @author Sebastian Gössl
- * @version 1.0 21.1.2019
+ * @version 1.0 20.8.2019
  */
-public class Matrix implements Iterable<Double> {
+public class MatrixGeneric<E> implements Iterable<E> {
     
     /**
      * Dimensions of the matrix.
@@ -54,7 +54,7 @@ public class Matrix implements Iterable<Double> {
     /**
      * Elements of the matrix.
      */
-    private final double[][] data;
+    private final Object[][] data;
     
     
     
@@ -63,10 +63,10 @@ public class Matrix implements Iterable<Double> {
      * 
      * @param other matrix to copy
      */
-    public Matrix(Matrix other) {
+    public MatrixGeneric(MatrixGeneric<E> other) {
         this(other.getHeight(), other.getWidth());
-        final PrimitiveIterator.OfDouble iterator = other.iterator();
-        set(() -> (iterator.nextDouble()));
+        final Iterator<E> iterator = other.iterator();
+        set(() -> (iterator.next()));
     }
     
     /**
@@ -74,7 +74,7 @@ public class Matrix implements Iterable<Double> {
      * 
      * @param array data to be stored into the matrix
      */
-    public Matrix(double[][] array) {
+    public MatrixGeneric(E[][] array) {
         this(array.length, array[0].length, (y, x) -> (array[y][x]));
     }
     
@@ -86,7 +86,7 @@ public class Matrix implements Iterable<Double> {
      * @param width number of columns
      * @param value value to fill the matrix with
      */
-    public Matrix(int height, int width, double value) {
+    public MatrixGeneric(int height, int width, E value) {
         this(height, width, () -> (value));
     }
     
@@ -99,7 +99,7 @@ public class Matrix implements Iterable<Double> {
      * @param width number of columns
      * @param supplier supplier to fill the matrix with values
      */
-    public Matrix(int height, int width, DoubleSupplier supplier) {
+    public MatrixGeneric(int height, int width, Supplier<E> supplier) {
         this(height, width);
         set(supplier);
     }
@@ -116,8 +116,8 @@ public class Matrix implements Iterable<Double> {
      * @param function function that recieves the indices of the element it
      * shall calculate
      */
-    public Matrix(int height, int width,
-            ToDoubleBiFunction<Integer, Integer> function) {
+    public MatrixGeneric(int height, int width,
+            BiFunction<Integer, Integer, E> function) {
         this(height, width);
         set(function);
     }
@@ -130,11 +130,11 @@ public class Matrix implements Iterable<Double> {
      * @param height number of rows
      * @param width number of columns
      */
-    public Matrix(int height, int width) {
-        this.height = height;
-        this.width = width;
-        
-        data = new double[height][width];
+    public MatrixGeneric(int height, int width) {
+      this.height = height;
+      this.width = width;
+      
+      data = new Object[height][width];
     }
     
     
@@ -164,8 +164,8 @@ public class Matrix implements Iterable<Double> {
      * @param column column of the element to return
      * @return the element at the specified position
      */
-    public double get(int row, int column) {
-        return data[row][column];
+    public E get(int row, int column) {
+        return (E)data[row][column];
     }
     
     /**
@@ -177,10 +177,10 @@ public class Matrix implements Iterable<Double> {
      * @param value element to be stored at the specified position
      * @return element previously at the specified position
      */
-    public double set(int row, int column, double value) {
-        final double oldElement = data[row][column];
-        data[row][column] = value;
-        return oldElement;
+    public E set(int row, int column, E value) {
+      final E oldElement = (E)data[row][column];
+      data[row][column] = value;
+      return oldElement;
     }
     
     /**
@@ -188,7 +188,7 @@ public class Matrix implements Iterable<Double> {
      * 
      * @param value element to replace all elements
      */
-    public void set(double value) {
+    public void set(E value) {
         set(() -> (value));
     }
     
@@ -197,10 +197,10 @@ public class Matrix implements Iterable<Double> {
      * 
      * @param supplier supplier to supply new values for all elements
      */
-    public void set(DoubleSupplier supplier) {
+    public void set(Supplier<E> supplier) {
         for(int j=0; j<getHeight(); j++) {
             for(int i=0; i<getWidth(); i++) {
-                set(j, i, supplier.getAsDouble());
+                set(j, i, supplier.get());
             }
         }
     }
@@ -212,97 +212,24 @@ public class Matrix implements Iterable<Double> {
      * 
      * @param function function to calculate new values for all elements
      */
-    public void set(ToDoubleBiFunction<Integer, Integer> function) {
+    public void set(BiFunction<Integer, Integer, E> function) {
         for(int j=0; j<getHeight(); j++) {
             for(int i=0; i<getWidth(); i++) {
-                set(j, i, function.applyAsDouble(j, i));
+                set(j, i, function.apply(j, i));
             }
         }
     }
     
     
-    /**
-     * Adds the given matrix to this matrix elementwise and returns the result.
-     * 
-     * @param operand other summand
-     * @return sum
-     */
-    public Matrix add(Matrix operand) {
-        return apply(operand, (x, y) -> (x + y));
-    }
-    
-    /**
-     * Subtracts the given matrix from this matrix elementwise and returns the
-     * result.
-     * 
-     * @param operand subtrahend
-     * @return difference
-     */
-    public Matrix subtract(Matrix operand) {
-        return apply(operand, (x, y) -> (x - y));
-    }
-    
-    /**
-     * Multiplies every element of this matrix with the given value and returns
-     * the result.
-     * Scalar multiplication.
-     * 
-     * @param factor scalar factor
-     * @return product
-     */
-    public Matrix multiply(double factor) {
-        return apply((x) -> (factor * x));
-    }
-    
-    /**
-     * Matrix multiplies this matrix with the given matrix and returns the
-     * result.
-     * 
-     * @param operand second factor
-     * @return product
-     */
-    public Matrix multiply(Matrix operand) {
-        final Matrix result = new Matrix(getHeight(), operand.getWidth(),
-                (y, x) -> {
-                    double sum = 0;
-                    for(int i=0; i<getWidth() && i<operand.getHeight(); i++) {
-                        sum += get(y, i) * operand.get(i, x);
-                    }
-                    return sum;
-                });
-        
-        return result;
-    }
-    
-    /**
-     * Multiplies this matrix with the given matrix elementwise and returns the
-     * result.
-     * 
-     * @param operand factor
-     * @return product
-     */
-    public Matrix multiplyElementwise(Matrix operand) {
-        return apply(operand, (x, y) -> (x * y));
-    }
-    
-    /**
-     * Divides this matrix by the given matrix elementwise and returns the
-     * result.
-     * 
-     * @param operand divisor
-     * @return quotient
-     */
-    public Matrix divideElementwise(Matrix operand) {
-        return apply(operand, (x, y) -> (x / y));
-    }
     
     /**
      * Returns the transpose of this matrix.
      * 
      * @return Transpose of this matrix.
      */
-    public Matrix transpose() {
-        final Matrix result = new Matrix(getWidth(), getHeight(),
+    public MatrixGeneric<E> transpose() {
+        final MatrixGeneric<E> result = new MatrixGeneric<>(
+                getWidth(), getHeight(),
                 (y, x) -> (get(x, y)));
         
         return result;
@@ -314,9 +241,9 @@ public class Matrix implements Iterable<Double> {
      * 
      * @param operator operator to apply on every element of this matrix
      */
-    public void forEach(DoubleUnaryOperator operator) {
-        final PrimitiveIterator.OfDouble iterator = iterator();
-        set(() -> (operator.applyAsDouble(iterator.nextDouble())));
+    public void forEach(UnaryOperator<E> operator) {
+        final Iterator<E> iterator = iterator();
+        set(() -> (operator.apply(iterator.next())));
     }
     
     /**
@@ -326,10 +253,10 @@ public class Matrix implements Iterable<Double> {
      * @param operand second operand
      * @param operator operator to apply on every element of this matrix
      */
-    public void forEach(Matrix operand, DoubleBinaryOperator operator) {
-        final PrimitiveIterator.OfDouble i1 = iterator();
-        final PrimitiveIterator.OfDouble i2 = operand.iterator();
-        set(() -> (operator.applyAsDouble(i1.nextDouble(), i2.nextDouble())));
+    public void forEach(MatrixGeneric<E> operand, BinaryOperator<E> operator) {
+        final Iterator<E> i1 = iterator();
+        final Iterator<E> i2 = operand.iterator();
+        set(() -> (operator.apply(i1.next(), i2.next())));
     }
     
     /**
@@ -339,10 +266,11 @@ public class Matrix implements Iterable<Double> {
      * @param operator operator to apply on every element of this matrix
      * @return result of the operation
      */
-    public Matrix apply(DoubleUnaryOperator operator) {
-        final PrimitiveIterator.OfDouble iterator = iterator();
-        final Matrix result = new Matrix(getHeight(), getWidth(),
-                () -> (operator.applyAsDouble(iterator.nextDouble())));
+    public MatrixGeneric<E> apply(UnaryOperator<E> operator) {
+        final Iterator<E> iterator = iterator();
+        final MatrixGeneric<E> result = new MatrixGeneric<>(
+                getHeight(), getWidth(),
+                () -> (operator.apply(iterator.next())));
         
         return result;
     }
@@ -355,11 +283,14 @@ public class Matrix implements Iterable<Double> {
      * @param operator operator to apply on every element of the matricies
      * @return result of the operation
      */
-    public Matrix apply(Matrix operand, DoubleBinaryOperator operator) {
-        final PrimitiveIterator.OfDouble i1 = iterator();
-        final PrimitiveIterator.OfDouble i2 = operand.iterator();
-        final Matrix result = new Matrix(getHeight(), getWidth(),
-                () -> (operator.applyAsDouble(i1.nextDouble(), i2.nextDouble())));
+    public MatrixGeneric<E> apply(MatrixGeneric<E> operand,
+            BinaryOperator<E> operator) {
+        
+        final Iterator<E> i1 = iterator();
+        final Iterator<E> i2 = operand.iterator();
+        final MatrixGeneric<E> result = new MatrixGeneric<>(
+                getHeight(), getWidth(),
+                () -> (operator.apply(i1.next(), i2.next())));
         
         return result;
     }
@@ -374,15 +305,17 @@ public class Matrix implements Iterable<Double> {
      * @param operator operator to apply on every element of the matricies
      * @return result of the operation
      */
-    public Matrix applyDifSize(Matrix operand, DoubleBinaryOperator operator) {
-        final Matrix result = new Matrix(
+    public MatrixGeneric<E> applyDifSize(MatrixGeneric<E> operand,
+            BinaryOperator<E> operator) {
+        
+        final MatrixGeneric<E> result = new MatrixGeneric<>(
                 Math.max(getHeight(), operand.getHeight()),
                 Math.max(getWidth(), operand.getWidth()),
                 (y, x) -> {
-                    final double value1 = get(y % getHeight(), x % getWidth());
-                    final double value2 = operand.get(
+                    final E value1 = get(y % getHeight(), x % getWidth());
+                    final E value2 = operand.get(
                             y % operand.getHeight(), x % operand.getWidth());
-                    return operator.applyAsDouble(value1, value2);
+                    return operator.apply(value1, value2);
                 });
         
         return result;
@@ -393,7 +326,7 @@ public class Matrix implements Iterable<Double> {
     /**
      * Iterator which iterates over all elements column-row wise.
      */
-    private class MatrixIterator implements PrimitiveIterator.OfDouble {
+    private class MatrixGenericIterator implements Iterator<E> {
         /**
          * Current position of the iterator.
          */
@@ -405,13 +338,13 @@ public class Matrix implements Iterable<Double> {
         }
         
         @Override
-        public double nextDouble() {
+        public E next() {
             if(!hasNext()) {
                 throw new NoSuchElementException();
             }
             
             
-            final double element = get(j, i);
+            final E element = get(j, i);
             
             if(++i >= getWidth()) {
                 i = 0;
@@ -428,8 +361,8 @@ public class Matrix implements Iterable<Double> {
      * @return iterator which iterates over all elements column-row wise
      */
     @Override
-    public PrimitiveIterator.OfDouble iterator() {
-        return new MatrixIterator();
+    public Iterator<E> iterator() {
+        return new MatrixGenericIterator();
     }
     
     /**
@@ -437,8 +370,8 @@ public class Matrix implements Iterable<Double> {
      * 
      * @return copy of this matrix in 2 dimensional array form
      */
-    public double[][] toArray() {
-        final double[][] array = new double[getHeight()][getWidth()];
+    public Object[][] toArray() {
+        final Object[][] array = new Object[height][width];
         
         for(int i=0; i<array.length; i++) {
             System.arraycopy(data[i], 0, array[i], 0, array[i].length);
@@ -456,7 +389,7 @@ public class Matrix implements Iterable<Double> {
     public String toString() {
         final StringBuilder builder = new StringBuilder();
         
-        for(double[] array : data) {
+        for(Object[] array : data) {
             builder.append(Arrays.toString(array)).append("\n");
         }
         

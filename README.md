@@ -1,16 +1,19 @@
-# Matrix
+# Matrix & MatrixGeneric
 
-Matrix class used to store and operate on matricies.
+MatrixGeneric class used to store and operate on generic matricies and Matrix
+class for mathematical usage with double values.
 The indices of the elements are zero indexed.
 
 ## Usage
 
-The dimensions of the matrix are imutable and must be known when calling any
-of the constructors.
+The dimensions of both classes are imutable and must be known when calling
+any of the constructors.
 All basic getters & setters are implemented.
 Many methods (and constructors) use the Java functional interfaces for simple
-ways to initialize, set or modify the elements of the matrix.
-This class already implements basic mathematical operations:
+ways to initialize, set or modify the elements of the matrix and operate
+on the matrix itself or multiple matricies at once.
+
+The matrix class also implements basic mathematical operations:
  - Addition
  - Subtraction
  - Scalar multiplication
@@ -30,6 +33,7 @@ Done!
 ## TODO
 
  - [ ] Argument validation
+ - [ ] Implement Matrix as extension of MatrixGeneric
  - [x] Documentation
 
 ## License (MIT)
