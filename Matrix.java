@@ -41,7 +41,7 @@ import java.util.function.ToDoubleBiFunction;
  * The indices of the elements are zero indexed.
  * 
  * @author Sebastian Gössl
- * @version 1.0 21.1.2019
+ * @version 1.1 28.8.2019
  */
 public class Matrix implements Iterable<Double> {
     
@@ -87,7 +87,8 @@ public class Matrix implements Iterable<Double> {
      * @param value value to fill the matrix with
      */
     public Matrix(int height, int width, double value) {
-        this(height, width, () -> (value));
+        this(height, width);
+        set(value);
     }
     
     /**
@@ -221,6 +222,7 @@ public class Matrix implements Iterable<Double> {
     }
     
     
+    
     /**
      * Adds the given matrix to this matrix elementwise and returns the result.
      * 
@@ -228,7 +230,7 @@ public class Matrix implements Iterable<Double> {
      * @return sum
      */
     public Matrix add(Matrix operand) {
-        return apply(operand, (x, y) -> (x + y));
+        return applyNew(operand, (x, y) -> (x + y));
     }
     
     /**
@@ -239,7 +241,7 @@ public class Matrix implements Iterable<Double> {
      * @return difference
      */
     public Matrix subtract(Matrix operand) {
-        return apply(operand, (x, y) -> (x - y));
+        return applyNew(operand, (x, y) -> (x - y));
     }
     
     /**
@@ -251,7 +253,7 @@ public class Matrix implements Iterable<Double> {
      * @return product
      */
     public Matrix multiply(double factor) {
-        return apply((x) -> (factor * x));
+        return applyNew((x) -> (factor * x));
     }
     
     /**
@@ -282,7 +284,7 @@ public class Matrix implements Iterable<Double> {
      * @return product
      */
     public Matrix multiplyElementwise(Matrix operand) {
-        return apply(operand, (x, y) -> (x * y));
+        return applyNew(operand, (x, y) -> (x * y));
     }
     
     /**
@@ -293,7 +295,7 @@ public class Matrix implements Iterable<Double> {
      * @return quotient
      */
     public Matrix divideElementwise(Matrix operand) {
-        return apply(operand, (x, y) -> (x / y));
+        return applyNew(operand, (x, y) -> (x / y));
     }
     
     /**
@@ -314,7 +316,7 @@ public class Matrix implements Iterable<Double> {
      * 
      * @param operator operator to apply on every element of this matrix
      */
-    public void forEach(DoubleUnaryOperator operator) {
+    public void apply(DoubleUnaryOperator operator) {
         final PrimitiveIterator.OfDouble iterator = iterator();
         set(() -> (operator.applyAsDouble(iterator.nextDouble())));
     }
@@ -326,10 +328,25 @@ public class Matrix implements Iterable<Double> {
      * @param operand second operand
      * @param operator operator to apply on every element of this matrix
      */
-    public void forEach(Matrix operand, DoubleBinaryOperator operator) {
+    public void apply(Matrix operand, DoubleBinaryOperator operator) {
         final PrimitiveIterator.OfDouble i1 = iterator();
         final PrimitiveIterator.OfDouble i2 = operand.iterator();
         set(() -> (operator.applyAsDouble(i1.nextDouble(), i2.nextDouble())));
+    }
+    
+    /**
+     * Applies the given operator on every element of this matrix and the given
+     * matrix elementwise wrapping around.
+     * 
+     * @param operand second operand
+     * @param operator operator to apply on every element of the matrix
+     */
+    public void applyDifSize(Matrix operand, DoubleBinaryOperator operator) {
+        set((y, x) -> {
+            final double value1 = get(y, x);
+            final double value2 = operand.get(y % getHeight(), x % getWidth());
+            return operator.applyAsDouble(value1, value2);
+        });
     }
     
     /**
@@ -339,7 +356,7 @@ public class Matrix implements Iterable<Double> {
      * @param operator operator to apply on every element of this matrix
      * @return result of the operation
      */
-    public Matrix apply(DoubleUnaryOperator operator) {
+    public Matrix applyNew(DoubleUnaryOperator operator) {
         final PrimitiveIterator.OfDouble iterator = iterator();
         final Matrix result = new Matrix(getHeight(), getWidth(),
                 () -> (operator.applyAsDouble(iterator.nextDouble())));
@@ -355,7 +372,7 @@ public class Matrix implements Iterable<Double> {
      * @param operator operator to apply on every element of the matricies
      * @return result of the operation
      */
-    public Matrix apply(Matrix operand, DoubleBinaryOperator operator) {
+    public Matrix applyNew(Matrix operand, DoubleBinaryOperator operator) {
         final PrimitiveIterator.OfDouble i1 = iterator();
         final PrimitiveIterator.OfDouble i2 = operand.iterator();
         final Matrix result = new Matrix(getHeight(), getWidth(),
@@ -374,7 +391,7 @@ public class Matrix implements Iterable<Double> {
      * @param operator operator to apply on every element of the matricies
      * @return result of the operation
      */
-    public Matrix applyDifSize(Matrix operand, DoubleBinaryOperator operator) {
+    public Matrix applyNewDifSize(Matrix operand, DoubleBinaryOperator operator) {
         final Matrix result = new Matrix(
                 Math.max(getHeight(), operand.getHeight()),
                 Math.max(getWidth(), operand.getWidth()),

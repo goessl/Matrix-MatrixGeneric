@@ -41,7 +41,7 @@ import java.util.function.UnaryOperator;
  * The indices of the elements are zero indexed.
  * 
  * @author Sebastian Gössl
- * @version 1.0 20.8.2019
+ * @version 1.1 28.8.2019
  */
 public class MatrixGeneric<E> implements Iterable<E> {
     
@@ -87,7 +87,8 @@ public class MatrixGeneric<E> implements Iterable<E> {
      * @param value value to fill the matrix with
      */
     public MatrixGeneric(int height, int width, E value) {
-        this(height, width, () -> (value));
+        this(height, width);
+        set(value);
     }
     
     /**
@@ -241,7 +242,7 @@ public class MatrixGeneric<E> implements Iterable<E> {
      * 
      * @param operator operator to apply on every element of this matrix
      */
-    public void forEach(UnaryOperator<E> operator) {
+    public void apply(UnaryOperator<E> operator) {
         final Iterator<E> iterator = iterator();
         set(() -> (operator.apply(iterator.next())));
     }
@@ -253,10 +254,26 @@ public class MatrixGeneric<E> implements Iterable<E> {
      * @param operand second operand
      * @param operator operator to apply on every element of this matrix
      */
-    public void forEach(MatrixGeneric<E> operand, BinaryOperator<E> operator) {
+    public void apply(MatrixGeneric<E> operand, BinaryOperator<E> operator) {
         final Iterator<E> i1 = iterator();
         final Iterator<E> i2 = operand.iterator();
         set(() -> (operator.apply(i1.next(), i2.next())));
+    }
+    
+    /**
+     * Applies the given operator on every element of this matrix and the given
+     * matrix elementwise wrapping around.
+     * 
+     * @param operand second operand
+     * @param operator operator to apply on every element of the matrix
+     */
+    public void applyDifSize(MatrixGeneric<E> operand,
+            BinaryOperator<E> operator) {
+        set((y, x) -> {
+            final E value1 = get(y, x);
+            final E value2 = operand.get(y % getHeight(), x % getWidth());
+            return operator.apply(value1, value2);
+        });
     }
     
     /**
@@ -266,7 +283,7 @@ public class MatrixGeneric<E> implements Iterable<E> {
      * @param operator operator to apply on every element of this matrix
      * @return result of the operation
      */
-    public MatrixGeneric<E> apply(UnaryOperator<E> operator) {
+    public MatrixGeneric<E> applyNew(UnaryOperator<E> operator) {
         final Iterator<E> iterator = iterator();
         final MatrixGeneric<E> result = new MatrixGeneric<>(
                 getHeight(), getWidth(),
@@ -283,7 +300,7 @@ public class MatrixGeneric<E> implements Iterable<E> {
      * @param operator operator to apply on every element of the matricies
      * @return result of the operation
      */
-    public MatrixGeneric<E> apply(MatrixGeneric<E> operand,
+    public MatrixGeneric<E> applyNew(MatrixGeneric<E> operand,
             BinaryOperator<E> operator) {
         
         final Iterator<E> i1 = iterator();
@@ -305,7 +322,7 @@ public class MatrixGeneric<E> implements Iterable<E> {
      * @param operator operator to apply on every element of the matricies
      * @return result of the operation
      */
-    public MatrixGeneric<E> applyDifSize(MatrixGeneric<E> operand,
+    public MatrixGeneric<E> applyNewDifSize(MatrixGeneric<E> operand,
             BinaryOperator<E> operator) {
         
         final MatrixGeneric<E> result = new MatrixGeneric<>(
