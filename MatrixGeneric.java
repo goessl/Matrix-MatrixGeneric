@@ -57,7 +57,7 @@ import java.util.function.UnaryOperator;
  * 
  * 
  * @author Sebastian Gössl
- * @version 1.2 1.9.2019
+ * @version 1.3 3.9.2019
  */
 public class MatrixGeneric<E> implements Iterable<E> {
     
@@ -82,7 +82,7 @@ public class MatrixGeneric<E> implements Iterable<E> {
     public MatrixGeneric(MatrixGeneric<E> other) {
         this(other.getHeight(), other.getWidth());
         final Iterator<E> iterator = other.iterator();
-        set(() -> (iterator.next()));
+        set(() -> iterator.next());
     }
     
     /**
@@ -91,7 +91,7 @@ public class MatrixGeneric<E> implements Iterable<E> {
      * @param array data to be stored into the matrix
      */
     public MatrixGeneric(E[][] array) {
-        this(array.length, array[0].length, (y, x) -> (array[y][x]));
+        this(array.length, array[0].length, (j, i) -> array[j][i]);
     }
     
     /**
@@ -206,7 +206,7 @@ public class MatrixGeneric<E> implements Iterable<E> {
      * @param value element to replace all elements
      */
     public void set(E value) {
-        set(() -> (value));
+        set(() -> value);
     }
     
     /**
@@ -216,7 +216,7 @@ public class MatrixGeneric<E> implements Iterable<E> {
      * @param supplier supplier to supply new values for all elements
      */
     public void set(Supplier<E> supplier) {
-        forEachIndices((y, x) -> set(y, x, supplier.get()));
+        forEachIndices((j, i) -> set(j, i, supplier.get()));
     }
     
     /**
@@ -227,7 +227,7 @@ public class MatrixGeneric<E> implements Iterable<E> {
      * @param function function to calculate new values for all elements
      */
     public void set(BiFunction<Integer, Integer, E> function) {
-        forEachIndices((y, x) -> set(y, x, function.apply(y, x)));
+        forEachIndices((j, i) -> set(j, i, function.apply(j, i)));
     }
     
     
@@ -239,8 +239,7 @@ public class MatrixGeneric<E> implements Iterable<E> {
      */
     public MatrixGeneric<E> transpose() {
         final MatrixGeneric<E> result = new MatrixGeneric<>(
-                getWidth(), getHeight(),
-                (y, x) -> (get(x, y)));
+                getWidth(), getHeight(), (j, i) -> get(j, i));
         
         return result;
     }
@@ -253,7 +252,7 @@ public class MatrixGeneric<E> implements Iterable<E> {
      */
     public void apply(UnaryOperator<E> operator) {
         final Iterator<E> iterator = iterator();
-        set(() -> (operator.apply(iterator.next())));
+        set(() -> operator.apply(iterator.next()));
     }
     
     /**
@@ -266,7 +265,7 @@ public class MatrixGeneric<E> implements Iterable<E> {
     public void apply(MatrixGeneric<E> operand, BinaryOperator<E> operator) {
         final Iterator<E> i1 = iterator();
         final Iterator<E> i2 = operand.iterator();
-        set(() -> (operator.apply(i1.next(), i2.next())));
+        set(() -> operator.apply(i1.next(), i2.next()));
     }
     
     /**
@@ -278,9 +277,9 @@ public class MatrixGeneric<E> implements Iterable<E> {
      */
     public void applyDifSize(MatrixGeneric<E> operand,
             BinaryOperator<E> operator) {
-        set((y, x) -> {
-            final E value1 = get(y, x);
-            final E value2 = operand.get(y % getHeight(), x % getWidth());
+        set((j, i) -> {
+            final E value1 = get(j, i);
+            final E value2 = operand.get(j % getHeight(), i % getWidth());
             return operator.apply(value1, value2);
         });
     }
@@ -296,7 +295,7 @@ public class MatrixGeneric<E> implements Iterable<E> {
         final Iterator<E> iterator = iterator();
         final MatrixGeneric<E> result = new MatrixGeneric<>(
                 getHeight(), getWidth(),
-                () -> (operator.apply(iterator.next())));
+                () -> operator.apply(iterator.next()));
         
         return result;
     }
@@ -316,7 +315,7 @@ public class MatrixGeneric<E> implements Iterable<E> {
         final Iterator<E> i2 = operand.iterator();
         final MatrixGeneric<E> result = new MatrixGeneric<>(
                 getHeight(), getWidth(),
-                () -> (operator.apply(i1.next(), i2.next())));
+                () -> operator.apply(i1.next(), i2.next()));
         
         return result;
     }
@@ -337,10 +336,10 @@ public class MatrixGeneric<E> implements Iterable<E> {
         final MatrixGeneric<E> result = new MatrixGeneric<>(
                 Math.max(getHeight(), operand.getHeight()),
                 Math.max(getWidth(), operand.getWidth()),
-                (y, x) -> {
-                    final E value1 = get(y % getHeight(), x % getWidth());
+                (j, i) -> {
+                    final E value1 = get(j % getHeight(), i % getWidth());
                     final E value2 = operand.get(
-                            y % operand.getHeight(), x % operand.getWidth());
+                            j % operand.getHeight(), i % operand.getWidth());
                     return operator.apply(value1, value2);
                 });
         
@@ -404,7 +403,7 @@ public class MatrixGeneric<E> implements Iterable<E> {
      */
     @Override
     public void forEach(Consumer<? super E> action) {
-        forEachIndices((y, x) -> action.accept(get(y, x)));
+        forEachIndices((j, i) -> action.accept(get(j, i)));
     }
     
     /**
@@ -617,9 +616,7 @@ public class MatrixGeneric<E> implements Iterable<E> {
     public Object[][] toArray() {
         final Object[][] array = new Object[height][width];
         
-        for(int i=0; i<array.length; i++) {
-            System.arraycopy(data[i], 0, array[i], 0, array[i].length);
-        }
+        forEachIndices((j, i) -> array[j][i] = get(j, i));
         
         return array;
     }
@@ -633,8 +630,8 @@ public class MatrixGeneric<E> implements Iterable<E> {
     public String toString() {
         final StringBuilder builder = new StringBuilder();
         
-        for(Object[] array : data) {
-            builder.append(Arrays.toString(array)).append("\n");
+        for(Object[] array : toArray()) {
+            builder.append(Arrays.toString(array)).append('\n');
         }
         
         return builder.toString();
