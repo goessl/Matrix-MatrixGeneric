@@ -29,13 +29,13 @@ package matrix;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-import java.util.Spliterator;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
+import java.util.stream.IntStream;
 
 
 
@@ -49,15 +49,12 @@ import java.util.function.UnaryOperator;
  *  [[0,0 0,1 0,2],
  *   [1,0 1,1 1,2]]
  * 
- * All operations that apply to more than one single element (set, iterator,
- * forEach, ...) traverse the matrix column-row vise.
- * e.g. the same 2x3 matrix will be operated in this order
- *  [[0 1 2],
- *   [3 4 5]]
+ * All operations are applied, if possible, in parallel, otherwise
+ * column-row vise.
  * 
  * 
  * @author Sebastian Gössl
- * @version 1.3 3.9.2019
+ * @version 1.4 3.9.2019
  */
 public class MatrixGeneric<E> implements Iterable<E> {
     
@@ -80,9 +77,7 @@ public class MatrixGeneric<E> implements Iterable<E> {
      * @param other matrix to copy
      */
     public MatrixGeneric(MatrixGeneric<E> other) {
-        this(other.getHeight(), other.getWidth());
-        final Iterator<E> iterator = other.iterator();
-        set(() -> iterator.next());
+        this(other.getHeight(), other.getWidth(), (j, i) -> other.get(j, i));
     }
     
     /**
@@ -195,9 +190,9 @@ public class MatrixGeneric<E> implements Iterable<E> {
      * @return element previously at the specified position
      */
     public E set(int row, int column, E value) {
-      final E oldElement = (E)data[row][column];
-      data[row][column] = value;
-      return oldElement;
+        final E oldElement = (E)data[row][column];
+        data[row][column] = value;
+        return oldElement;
     }
     
     /**
@@ -206,7 +201,7 @@ public class MatrixGeneric<E> implements Iterable<E> {
      * @param value element to replace all elements
      */
     public void set(E value) {
-        set(() -> value);
+        forEachIndicesParallel((j, i) -> set(j, i, value));
     }
     
     /**
@@ -227,7 +222,7 @@ public class MatrixGeneric<E> implements Iterable<E> {
      * @param function function to calculate new values for all elements
      */
     public void set(BiFunction<Integer, Integer, E> function) {
-        forEachIndices((j, i) -> set(j, i, function.apply(j, i)));
+        forEachIndicesParallel((j, i) -> set(j, i, function.apply(j, i)));
     }
     
     
@@ -238,11 +233,10 @@ public class MatrixGeneric<E> implements Iterable<E> {
      * @return Transpose of this matrix.
      */
     public MatrixGeneric<E> transpose() {
-        final MatrixGeneric<E> result = new MatrixGeneric<>(
-                getWidth(), getHeight(), (j, i) -> get(j, i));
-        
-        return result;
+        return new MatrixGeneric<>(getWidth(), getHeight(),
+                (j, i) -> get(i, j));
     }
+    
     
     
     /**
@@ -251,8 +245,7 @@ public class MatrixGeneric<E> implements Iterable<E> {
      * @param operator operator to apply on every element of this matrix
      */
     public void apply(UnaryOperator<E> operator) {
-        final Iterator<E> iterator = iterator();
-        set(() -> operator.apply(iterator.next()));
+        set((j, i) -> operator.apply(get(j, i)));
     }
     
     /**
@@ -263,9 +256,7 @@ public class MatrixGeneric<E> implements Iterable<E> {
      * @param operator operator to apply on every element of this matrix
      */
     public void apply(MatrixGeneric<E> operand, BinaryOperator<E> operator) {
-        final Iterator<E> i1 = iterator();
-        final Iterator<E> i2 = operand.iterator();
-        set(() -> operator.apply(i1.next(), i2.next()));
+        set((j, i) -> operator.apply(get(j, i), operand.get(j, i)));
     }
     
     /**
@@ -277,11 +268,9 @@ public class MatrixGeneric<E> implements Iterable<E> {
      */
     public void applyDifSize(MatrixGeneric<E> operand,
             BinaryOperator<E> operator) {
-        set((j, i) -> {
-            final E value1 = get(j, i);
-            final E value2 = operand.get(j % getHeight(), i % getWidth());
-            return operator.apply(value1, value2);
-        });
+        set((j, i) -> operator.apply(
+                get(j, i),
+                operand.get(j % getHeight(), i % getWidth())));
     }
     
     /**
@@ -292,12 +281,8 @@ public class MatrixGeneric<E> implements Iterable<E> {
      * @return result of the operation
      */
     public MatrixGeneric<E> applyNew(UnaryOperator<E> operator) {
-        final Iterator<E> iterator = iterator();
-        final MatrixGeneric<E> result = new MatrixGeneric<>(
-                getHeight(), getWidth(),
-                () -> operator.apply(iterator.next()));
-        
-        return result;
+        return new MatrixGeneric<>(getHeight(), getWidth(),
+                (j, i) -> operator.apply(get(j, i)));
     }
     
     /**
@@ -310,14 +295,8 @@ public class MatrixGeneric<E> implements Iterable<E> {
      */
     public MatrixGeneric<E> applyNew(MatrixGeneric<E> operand,
             BinaryOperator<E> operator) {
-        
-        final Iterator<E> i1 = iterator();
-        final Iterator<E> i2 = operand.iterator();
-        final MatrixGeneric<E> result = new MatrixGeneric<>(
-                getHeight(), getWidth(),
-                () -> operator.apply(i1.next(), i2.next()));
-        
-        return result;
+        return new MatrixGeneric<>(getHeight(), getWidth(),
+                (j, i) -> operator.apply(get(j, i), operand.get(j, i)));
     }
     
     /**
@@ -332,8 +311,7 @@ public class MatrixGeneric<E> implements Iterable<E> {
      */
     public MatrixGeneric<E> applyNewDifSize(MatrixGeneric<E> operand,
             BinaryOperator<E> operator) {
-        
-        final MatrixGeneric<E> result = new MatrixGeneric<>(
+        return new MatrixGeneric<>(
                 Math.max(getHeight(), operand.getHeight()),
                 Math.max(getWidth(), operand.getWidth()),
                 (j, i) -> {
@@ -342,8 +320,6 @@ public class MatrixGeneric<E> implements Iterable<E> {
                             j % operand.getHeight(), i % operand.getWidth());
                     return operator.apply(value1, value2);
                 });
-        
-        return result;
     }
     
     
@@ -407,6 +383,15 @@ public class MatrixGeneric<E> implements Iterable<E> {
     }
     
     /**
+     * Same as forEach but the elements are processed in parallel.
+     * 
+     * @param action action to be performed for each element
+     */
+    public void forEachParallel(Consumer<? super E> action) {
+        forEachIndicesParallel((j, i) -> action.accept(get(j, i)));
+    }
+    
+    /**
      * Applies the given consumer to all available indices in this matrix in
      * the same order as the iterator traverses them.
      * 
@@ -420,191 +405,16 @@ public class MatrixGeneric<E> implements Iterable<E> {
         }
     }
     
-    
     /**
-     * Spliterator which iterates over all elements column-row wise.
-     * Works similarly as the MatrixIterator. If an split occours the remaining
-     * elements are split in half and the super spliterator continous to up to
-     * the split and the new spliterator begins at the split up to the old
-     * fence of the super spliterator.
+     * Applies the given consumer to all available indices in this matrix in
+     * parallel.
+     * 
+     * @param consumer consumer to be applied on all available indices
      */
-    private static class MatrixGenericSpliterator<E> implements Spliterator<E> {
-        /**
-         * Matrix this spliterator traverses.
-         */
-        private final MatrixGeneric<E> matrix;
-        /**
-         * Indices of the next element.
-         */
-        private int row, column;
-        /**
-         * Indices of the first element not beeing iterated over.
-         */
-        private int fenceRow, fenceColumn;
-        
-        
-        
-        /**
-         * Constructs a new MatrixSpliterator that iterates over the given
-         * matrix.
-         * It starts at indices 0,0 and continous up to position
-         * (height-1),(width-1).
-         * 
-         * @param matrix matrix this spliterator iterates over
-         */
-        public MatrixGenericSpliterator(MatrixGeneric<E> matrix) {
-            this(matrix, 0, 0, matrix.getHeight(), 0);
-        }
-        
-        /**
-         * Constructs a new MatrixSpliterator that iterates over the given
-         * matrix, starting at the given indices continuing up to position
-         * fenceRow,fenceColumn.
-         * 
-         * @param matrix matrix this spliterator iterates over
-         * @param row row index of the element on which this spliterator starts
-         * @param column column index of the element on which this spliterator
-         * starts
-         * @param fenceRow row index of the last element this spliterator
-         * iterates over
-         * @param fenceColumn column index of the last element this spliterator
-         * iterates over
-         */
-        public MatrixGenericSpliterator(MatrixGeneric<E> matrix,
-                int row, int column, int fenceRow, int fenceColumn) {
-            
-            this.matrix = matrix;
-            
-            this.row = row;
-            this.column = column;
-            
-            this.fenceRow = fenceRow;
-            this.fenceColumn = fenceColumn;
-        }
-        
-        
-        
-        /**
-         * {@inheritDoc}
-         */
-        @Override
-        public int characteristics() {
-            return Spliterator.ORDERED | Spliterator.SIZED
-                    | Spliterator.NONNULL | Spliterator.CONCURRENT
-                    | Spliterator.SUBSIZED;
-        }
-        
-        /**
-         * {@inheritDoc}
-         */
-        @Override
-        public long estimateSize() {
-            /*return (fenceRow - row) * matrix.getWidth()
-                    - column + fenceColumn;*/
-            return linearIndex(fenceRow, fenceColumn)
-                    - linearIndex(row, column);
-        }
-        
-        
-        /**
-         * Returns a linear index equivalent the the given indices. The linear
-         * index representation equals the ordering of this spliterator.
-         * 
-         * @param row row index of the position
-         * @param column column index of the position
-         * @return linear equvalent of the given position
-         */
-        private long linearIndex(int row, int column) {
-            return row * matrix.getWidth() + column;
-        }
-        
-        /**
-         * Returns the row index of the given linear index representation.
-         * 
-         * @param index linear index representation
-         * @return row index of the given linear index representation
-         */
-        private int indexToRow(long index) {
-            return (int)(index / matrix.getWidth());
-        }
-        
-        /**
-         * Returns the column index of the given linear index representation.
-         * 
-         * @param index linear index representation
-         * @return column index of the given linear index representation
-         */
-        private int indexToColumn(long index) {
-            return (int)(index % matrix.getWidth());
-        }
-        
-        
-        /**
-         * Returns if the next tryAdvance call will succeed.
-         * 
-         * @return if the next tryAdvance call will succeed
-         */
-        public boolean hasNext() {
-            return row < fenceRow
-                    || (row == fenceRow && column < fenceColumn);
-        }
-        
-        /**
-         * {@inheritDoc}
-         */
-        @Override
-        public boolean tryAdvance(Consumer<? super E> action) {
-            if(!hasNext()) {
-                return false;
-            }
-            
-            
-            final E element = matrix.get(row, column);
-            
-            if(++column >= matrix.getWidth()) {
-                column = 0;
-                row++;
-            }
-            
-            action.accept(element);
-            
-            return true;
-        }
-        
-        /**
-         * {@inheritDoc}
-         */
-        @Override
-        public Spliterator<E> trySplit() {
-            final long fence = linearIndex(fenceRow, fenceColumn);
-            final long index = linearIndex(row, column);
-            final long mid = (index + fence) >>> 1;
-            
-            
-            if(index < mid && mid < fence) {
-                
-                final MatrixGenericSpliterator<E> newSpliterator =
-                        new MatrixGenericSpliterator<>(matrix,
-                                indexToRow(mid), indexToColumn(mid),
-                                fenceRow, fenceColumn);
-                
-                fenceRow = indexToRow(mid);
-                fenceColumn = indexToColumn(mid);
-                
-                return newSpliterator;
-                
-            } else {
-                return null;
-            }
-        }
-    }
-    
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Spliterator<E> spliterator() {
-        return new MatrixGenericSpliterator<>(this);
+    public void forEachIndicesParallel(BiConsumer<Integer, Integer> consumer) {
+        IntStream.range(0, getHeight()).parallel().forEach((j) ->
+                IntStream.range(0, getWidth()).parallel().forEach((i) ->
+                        consumer.accept(j, i)));
     }
     
     
@@ -614,7 +424,7 @@ public class MatrixGeneric<E> implements Iterable<E> {
      * @return copy of this matrix in 2 dimensional array form
      */
     public Object[][] toArray() {
-        final Object[][] array = new Object[height][width];
+        final Object[][] array = new Object[getHeight()][getWidth()];
         
         forEachIndices((j, i) -> array[j][i] = get(j, i));
         

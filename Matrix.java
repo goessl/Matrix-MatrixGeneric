@@ -29,14 +29,13 @@ package matrix;
 import java.util.Arrays;
 import java.util.NoSuchElementException;
 import java.util.PrimitiveIterator;
-import java.util.Spliterator;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.DoubleBinaryOperator;
-import java.util.function.DoubleConsumer;
 import java.util.function.DoubleSupplier;
 import java.util.function.DoubleUnaryOperator;
 import java.util.function.ToDoubleBiFunction;
+import java.util.stream.IntStream;
 
 
 
@@ -50,15 +49,12 @@ import java.util.function.ToDoubleBiFunction;
  *  [[0,0 0,1 0,2],
  *   [1,0 1,1 1,2]]
  * 
- * All operations that apply to more than one single element (iterator, ...)
- * traverse the matrix column-row vise.
- * e.g. the same 2x3 matrix will be operated in this order
- *  [[0 1 2],
- *   [3 4 5]]
+ * All operations are applied, if possible, in parallel, otherwise
+ * column-row vise.
  * 
  * 
  * @author Sebastian Gössl
- * @version 1.3 3.9.2019
+ * @version 1.4 3.9.2019
  */
 public class Matrix implements Iterable<Double> {
     
@@ -81,9 +77,7 @@ public class Matrix implements Iterable<Double> {
      * @param other matrix to copy
      */
     public Matrix(Matrix other) {
-        this(other.getHeight(), other.getWidth());
-        final PrimitiveIterator.OfDouble iterator = other.iterator();
-        set(() -> iterator.nextDouble());
+        this(other.getHeight(), other.getWidth(), (j, i) -> other.get(j, i));
     }
     
     /**
@@ -207,7 +201,7 @@ public class Matrix implements Iterable<Double> {
      * @param value element to replace all elements
      */
     public void set(double value) {
-        set(() -> value);
+        forEachIndicesParallel((j, i) -> set(j, i, value));
     }
     
     /**
@@ -228,7 +222,8 @@ public class Matrix implements Iterable<Double> {
      * @param function function to calculate new values for all elements
      */
     public void set(ToDoubleBiFunction<Integer, Integer> function) {
-        forEachIndices((j, i) -> set(j, i, function.applyAsDouble(j, i)));
+        forEachIndicesParallel(
+                (j, i) -> set(j, i, function.applyAsDouble(j, i)));
     }
     
     
@@ -274,16 +269,13 @@ public class Matrix implements Iterable<Double> {
      * @return product
      */
     public Matrix multiply(Matrix operand) {
-        final Matrix result = new Matrix(getHeight(), operand.getWidth(),
-                (j, i) -> {
-                    double sum = 0;
-                    for(int k=0; k<getWidth() && k<operand.getHeight(); k++) {
-                        sum += get(j, k) * operand.get(k, i);
-                    }
-                    return sum;
-                });
-        
-        return result;
+        return new Matrix(getHeight(), operand.getWidth(), (j, i) -> {
+            double sum = 0;
+            for(int k=0; k<getWidth() && k<operand.getHeight(); k++) {
+                sum += get(j, k) * operand.get(k, i);
+            }
+            return sum;
+        });
     }
     
     /**
@@ -314,11 +306,9 @@ public class Matrix implements Iterable<Double> {
      * @return Transpose of this matrix.
      */
     public Matrix transpose() {
-        final Matrix result = new Matrix(getWidth(), getHeight(),
-                (j, i) -> get(j, i));
-        
-        return result;
+        return new Matrix(getWidth(), getHeight(), (j, i) -> get(i, j));
     }
+    
     
     
     /**
@@ -327,8 +317,7 @@ public class Matrix implements Iterable<Double> {
      * @param operator operator to apply on every element of this matrix
      */
     public void apply(DoubleUnaryOperator operator) {
-        final PrimitiveIterator.OfDouble iterator = iterator();
-        set(() -> operator.applyAsDouble(iterator.nextDouble()));
+        set((j, i) -> operator.applyAsDouble(get(j, i)));
     }
     
     /**
@@ -339,9 +328,7 @@ public class Matrix implements Iterable<Double> {
      * @param operator operator to apply on every element of this matrix
      */
     public void apply(Matrix operand, DoubleBinaryOperator operator) {
-        final PrimitiveIterator.OfDouble i1 = iterator();
-        final PrimitiveIterator.OfDouble i2 = operand.iterator();
-        set(() -> operator.applyAsDouble(i1.nextDouble(), i2.nextDouble()));
+        set((j, i) -> operator.applyAsDouble(get(j, i), operand.get(j, i)));
     }
     
     /**
@@ -352,11 +339,9 @@ public class Matrix implements Iterable<Double> {
      * @param operator operator to apply on every element of the matrix
      */
     public void applyDifSize(Matrix operand, DoubleBinaryOperator operator) {
-        set((j, i) -> {
-            final double value1 = get(j, i);
-            final double value2 = operand.get(j % getHeight(), i % getWidth());
-            return operator.applyAsDouble(value1, value2);
-        });
+        set((j, i) -> operator.applyAsDouble(
+                get(j, i),
+                operand.get(j % getHeight(), i % getWidth())));
     }
     
     /**
@@ -367,11 +352,8 @@ public class Matrix implements Iterable<Double> {
      * @return result of the operation
      */
     public Matrix applyNew(DoubleUnaryOperator operator) {
-        final PrimitiveIterator.OfDouble iterator = iterator();
-        final Matrix result = new Matrix(getHeight(), getWidth(),
-                () -> operator.applyAsDouble(iterator.nextDouble()));
-        
-        return result;
+        return new Matrix(getHeight(), getWidth(),
+                (j, i) -> operator.applyAsDouble(get(j, i)));
     }
     
     /**
@@ -383,12 +365,8 @@ public class Matrix implements Iterable<Double> {
      * @return result of the operation
      */
     public Matrix applyNew(Matrix operand, DoubleBinaryOperator operator) {
-        final PrimitiveIterator.OfDouble i1 = iterator();
-        final PrimitiveIterator.OfDouble i2 = operand.iterator();
-        final Matrix result = new Matrix(getHeight(), getWidth(), () ->
-                operator.applyAsDouble(i1.nextDouble(), i2.nextDouble()));
-        
-        return result;
+        return new Matrix(getHeight(), getWidth(), (j, i) ->
+                operator.applyAsDouble(get(j, i), operand.get(j, i)));
     }
     
     /**
@@ -402,7 +380,7 @@ public class Matrix implements Iterable<Double> {
      * @return result of the operation
      */
     public Matrix applyNewDifSize(Matrix operand, DoubleBinaryOperator operator) {
-        final Matrix result = new Matrix(
+        return new Matrix(
                 Math.max(getHeight(), operand.getHeight()),
                 Math.max(getWidth(), operand.getWidth()),
                 (j, i) -> {
@@ -411,8 +389,6 @@ public class Matrix implements Iterable<Double> {
                             j % operand.getHeight(), i % operand.getWidth());
                     return operator.applyAsDouble(value1, value2);
                 });
-        
-        return result;
     }
     
     
@@ -476,6 +452,15 @@ public class Matrix implements Iterable<Double> {
     }
     
     /**
+     * Same as forEach but the elements are processed in parallel.
+     * 
+     * @param action action to be performed for each element
+     */
+    public void forEachParallel(Consumer<? super Double> action) {
+        forEachIndicesParallel((j, i) -> action.accept(get(j, i)));
+    }
+    
+    /**
      * Applies the given consumer to all available indices in this matrix in
      * the same order as the iterator traverses them.
      * 
@@ -489,191 +474,16 @@ public class Matrix implements Iterable<Double> {
         }
     }
     
-    
     /**
-     * Spliterator which iterates over all elements column-row wise.
-     * Works similarly as the MatrixIterator. If an split occours the remaining
-     * elements are split in half and the super spliterator continous to up to
-     * the split and the new spliterator begins at the split up to the old
-     * fence of the super spliterator.
+     * Applies the given consumer to all available indices in this matrix in
+     * parallel.
+     * 
+     * @param consumer consumer to be applied on all available indices
      */
-    private static class MatrixSpliterator implements Spliterator.OfDouble {
-        /**
-         * Matrix this spliterator traverses.
-         */
-        private final Matrix matrix;
-        /**
-         * Indices of the next element.
-         */
-        private int row, column;
-        /**
-         * Indices of the first element not beeing iterated over.
-         */
-        private int fenceRow, fenceColumn;
-        
-        
-        
-        /**
-         * Constructs a new MatrixSpliterator that iterates over the given
-         * matrix.
-         * It starts at indices 0,0 and continous up to position
-         * (height-1),(width-1).
-         * 
-         * @param matrix matrix this spliterator iterates over
-         */
-        public MatrixSpliterator(Matrix matrix) {
-            this(matrix, 0, 0, matrix.getHeight(), 0);
-        }
-        
-        /**
-         * Constructs a new MatrixSpliterator that iterates over the given
-         * matrix, starting at the given indices continuing up to position
-         * fenceRow,fenceColumn.
-         * 
-         * @param matrix matrix this spliterator iterates over
-         * @param row row index of the element on which this spliterator starts
-         * @param column column index of the element on which this spliterator
-         * starts
-         * @param fenceRow row index of the last element this spliterator
-         * iterates over
-         * @param fenceColumn column index of the last element this spliterator
-         * iterates over
-         */
-        public MatrixSpliterator(Matrix matrix, int row, int column,
-                int fenceRow, int fenceColumn) {
-            
-            this.matrix = matrix;
-            
-            this.row = row;
-            this.column = column;
-            
-            this.fenceRow = fenceRow;
-            this.fenceColumn = fenceColumn;
-        }
-        
-        
-        
-        /**
-         * {@inheritDoc}
-         */
-        @Override
-        public int characteristics() {
-            return Spliterator.ORDERED | Spliterator.SIZED
-                    | Spliterator.NONNULL | Spliterator.CONCURRENT
-                    | Spliterator.SUBSIZED;
-        }
-        
-        /**
-         * {@inheritDoc}
-         */
-        @Override
-        public long estimateSize() {
-            /*return (fenceRow - row) * matrix.getWidth()
-                    - column + fenceColumn;*/
-            return linearIndex(fenceRow, fenceColumn)
-                    - linearIndex(row, column);
-        }
-        
-        
-        /**
-         * Returns a linear index equivalent the the given indices. The linear
-         * index representation equals the ordering of this spliterator.
-         * 
-         * @param row row index of the position
-         * @param column column index of the position
-         * @return linear equvalent of the given position
-         */
-        private long linearIndex(int row, int column) {
-            return row * matrix.getWidth() + column;
-        }
-        
-        /**
-         * Returns the row index of the given linear index representation.
-         * 
-         * @param index linear index representation
-         * @return row index of the given linear index representation
-         */
-        private int indexToRow(long index) {
-            return (int)(index / matrix.getWidth());
-        }
-        
-        /**
-         * Returns the column index of the given linear index representation.
-         * 
-         * @param index linear index representation
-         * @return column index of the given linear index representation
-         */
-        private int indexToColumn(long index) {
-            return (int)(index % matrix.getWidth());
-        }
-        
-        
-        /**
-         * Returns if the next tryAdvance call will succeed.
-         * 
-         * @return if the next tryAdvance call will succeed
-         */
-        public boolean hasNext() {
-            return row < fenceRow
-                    || (row == fenceRow && column < fenceColumn);
-        }
-        
-        /**
-         * {@inheritDoc}
-         */
-        @Override
-        public boolean tryAdvance(DoubleConsumer action) {
-            if(!hasNext()) {
-                return false;
-            }
-            
-            
-            final double element = matrix.get(row, column);
-            
-            if(++column >= matrix.getWidth()) {
-                column = 0;
-                row++;
-            }
-            
-            action.accept(element);
-            
-            return true;
-        }
-        
-        /**
-         * {@inheritDoc}
-         */
-        @Override
-        public OfDouble trySplit() {
-            final long fence = linearIndex(fenceRow, fenceColumn);
-            final long index = linearIndex(row, column);
-            final long mid = (index + fence) >>> 1;
-            
-            
-            if(index < mid && mid < fence) {
-                
-                final MatrixSpliterator newSpliterator =
-                        new MatrixSpliterator(matrix,
-                                indexToRow(mid), indexToColumn(mid),
-                                fenceRow, fenceColumn);
-                
-                fenceRow = indexToRow(mid);
-                fenceColumn = indexToColumn(mid);
-                
-                return newSpliterator;
-                
-            } else {
-                return null;
-            }
-        }
-    }
-    
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Spliterator.OfDouble spliterator() {
-        return new MatrixSpliterator(this);
+    public void forEachIndicesParallel(BiConsumer<Integer, Integer> consumer) {
+        IntStream.range(0, getHeight()).parallel().forEach((j) ->
+                IntStream.range(0, getWidth()).parallel().forEach((i) ->
+                        consumer.accept(j, i)));
     }
     
     
