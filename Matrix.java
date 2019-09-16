@@ -222,6 +222,19 @@ public class Matrix implements Iterable<Double> {
      * @param function function to calculate new values for all elements
      */
     public void set(ToDoubleBiFunction<Integer, Integer> function) {
+        forEachIndices(
+                (j, i) -> set(j, i, function.applyAsDouble(j, i)));
+    }
+    
+    /**
+     * Replaces all elements with the values returned from the given function
+     * in parallel.
+     * It recieves the position (row and column indices) of the element to
+     * replace as arguments.
+     * 
+     * @param function function to calculate new values for all elements
+     */
+    public void setParallel(ToDoubleBiFunction<Integer, Integer> function) {
         forEachIndicesParallel(
                 (j, i) -> set(j, i, function.applyAsDouble(j, i)));
     }
@@ -235,7 +248,7 @@ public class Matrix implements Iterable<Double> {
      * @return sum
      */
     public Matrix add(Matrix operand) {
-        return applyNew(operand, (x, y) -> x + y);
+        return applyNewParallel(operand, (x, y) -> x + y);
     }
     
     /**
@@ -246,7 +259,7 @@ public class Matrix implements Iterable<Double> {
      * @return difference
      */
     public Matrix subtract(Matrix operand) {
-        return applyNew(operand, (x, y) -> x - y);
+        return applyNewParallel(operand, (x, y) -> x - y);
     }
     
     /**
@@ -258,7 +271,7 @@ public class Matrix implements Iterable<Double> {
      * @return product
      */
     public Matrix multiply(double factor) {
-        return applyNew((x) -> factor * x);
+        return applyNewParallel((x) -> factor * x);
     }
     
     /**
@@ -269,13 +282,16 @@ public class Matrix implements Iterable<Double> {
      * @return product
      */
     public Matrix multiply(Matrix operand) {
-        return new Matrix(getHeight(), operand.getWidth(), (j, i) -> {
+        final Matrix result = new Matrix(getHeight(), operand.getWidth());
+        result.setParallel((j, i) -> {
             double sum = 0;
             for(int k=0; k<getWidth() && k<operand.getHeight(); k++) {
                 sum += get(j, k) * operand.get(k, i);
             }
             return sum;
         });
+        
+        return result;
     }
     
     /**
@@ -286,7 +302,7 @@ public class Matrix implements Iterable<Double> {
      * @return product
      */
     public Matrix multiplyElementwise(Matrix operand) {
-        return applyNew(operand, (x, y) -> x * y);
+        return applyNewParallel(operand, (x, y) -> x * y);
     }
     
     /**
@@ -297,7 +313,7 @@ public class Matrix implements Iterable<Double> {
      * @return quotient
      */
     public Matrix divideElementwise(Matrix operand) {
-        return applyNew(operand, (x, y) -> x / y);
+        return applyNewParallel(operand, (x, y) -> x / y);
     }
     
     /**
@@ -306,7 +322,10 @@ public class Matrix implements Iterable<Double> {
      * @return Transpose of this matrix.
      */
     public Matrix transpose() {
-        return new Matrix(getWidth(), getHeight(), (j, i) -> get(i, j));
+        final Matrix result = new Matrix(getWidth(), getHeight());
+        result.setParallel((j, i) -> get(i, j));
+        
+        return result;
     }
     
     
@@ -389,6 +408,95 @@ public class Matrix implements Iterable<Double> {
                             j % operand.getHeight(), i % operand.getWidth());
                     return operator.applyAsDouble(value1, value2);
                 });
+    }
+    
+    
+    /**
+     * Applies the given operator on every element of this matrix in parallel.
+     * 
+     * @param operator operator to apply on every element of this matrix
+     */
+    public void applyParallel(DoubleUnaryOperator operator) {
+        setParallel((j, i) -> operator.applyAsDouble(get(j, i)));
+    }
+    
+    /**
+     * Applies the given operator elementwise on every element of this matrix
+     * and the given one in parallel.
+     * 
+     * @param operand second operand
+     * @param operator operator to apply on every element of this matrix
+     */
+    public void applyParallel(Matrix operand, DoubleBinaryOperator operator) {
+        setParallel((j, i) -> operator.applyAsDouble(get(j, i), operand.get(j, i)));
+    }
+    
+    /**
+     * Applies the given operator on every element of this matrix and the given
+     * matrix in parallel elementwise wrapping around.
+     * 
+     * @param operand second operand
+     * @param operator operator to apply on every element of the matrix
+     */
+    public void applyDifSizeParallel(Matrix operand, DoubleBinaryOperator operator) {
+        setParallel((j, i) -> operator.applyAsDouble(
+                get(j, i),
+                operand.get(j % getHeight(), i % getWidth())));
+    }
+    
+    /**
+     * Applies the given operator on every element of this matrix in parallel
+     * and returns the result.
+     * 
+     * @param operator operator to apply on every element of this matrix
+     * @return result of the operation
+     */
+    public Matrix applyNewParallel(DoubleUnaryOperator operator) {
+        final Matrix newMatrix = new Matrix(getHeight(), getWidth());
+        newMatrix.setParallel((j, i) -> operator.applyAsDouble(get(j, i)));
+        
+        return newMatrix;
+    }
+    
+    /**
+     * Applies the given operator elementwise on every element of this matrix
+     * and the given one in parallel and returns the result.
+     * 
+     * @param operand second operand
+     * @param operator operator to apply on every element of the matricies
+     * @return result of the operation
+     */
+    public Matrix applyNewParallel(Matrix operand, DoubleBinaryOperator operator) {
+        final Matrix newMatrix = new Matrix(getHeight(), getWidth());
+        newMatrix.setParallel((j, i) ->
+                operator.applyAsDouble(get(j, i), operand.get(j, i)));
+        
+        return newMatrix;
+    }
+    
+    /**
+     * Applies the given operator on every element of this matrix and the given
+     * matrix in parallel elementwise wrapping around and returns the result.
+     * The result has as many rows and the matrix with more rows and as many
+     * columns as the matrix with more columns.
+     * 
+     * @param operand second operand
+     * @param operator operator to apply on every element of the matricies
+     * @return result of the operation
+     */
+    public Matrix applyNewDifSizeParallel(Matrix operand, DoubleBinaryOperator operator) {
+        final Matrix newMatrix = new Matrix(
+                Math.max(getHeight(), operand.getHeight()),
+                Math.max(getWidth(), operand.getWidth()));
+        
+        newMatrix.setParallel((j, i) -> {
+            final double value1 = get(j % getHeight(), i % getWidth());
+            final double value2 = operand.get(
+                    j % operand.getHeight(), i % operand.getWidth());
+            return operator.applyAsDouble(value1, value2);
+        });
+        
+        return newMatrix;
     }
     
     

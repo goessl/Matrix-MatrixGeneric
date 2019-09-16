@@ -222,6 +222,18 @@ public class MatrixGeneric<E> implements Iterable<E> {
      * @param function function to calculate new values for all elements
      */
     public void set(BiFunction<Integer, Integer, E> function) {
+        forEachIndices((j, i) -> set(j, i, function.apply(j, i)));
+    }
+    
+    /**
+     * Replaces all elements with the values returned from the given function
+     * in parallel.
+     * It recieves the position (row and column indices) of the element to
+     * replace as arguments.
+     * 
+     * @param function function to calculate new values for all elements
+     */
+    public void setParallel(BiFunction<Integer, Integer, E> function) {
         forEachIndicesParallel((j, i) -> set(j, i, function.apply(j, i)));
     }
     
@@ -233,8 +245,11 @@ public class MatrixGeneric<E> implements Iterable<E> {
      * @return Transpose of this matrix.
      */
     public MatrixGeneric<E> transpose() {
-        return new MatrixGeneric<>(getWidth(), getHeight(),
-                (j, i) -> get(i, j));
+        final MatrixGeneric<E> result =
+                new MatrixGeneric<>(getWidth(), getHeight());
+        result.setParallel((j, i) -> get(i, j));
+        
+        return result;
     }
     
     
@@ -320,6 +335,101 @@ public class MatrixGeneric<E> implements Iterable<E> {
                             j % operand.getHeight(), i % operand.getWidth());
                     return operator.apply(value1, value2);
                 });
+    }
+    
+    
+    /**
+     * Applies the given operator on every element of this matrix in parallel.
+     * 
+     * @param operator operator to apply on every element of this matrix
+     */
+    public void applyParallel(UnaryOperator<E> operator) {
+        setParallel((j, i) -> operator.apply(get(j, i)));
+    }
+    
+    /**
+     * Applies the given operator elementwise on every element of this matrix
+     * and the given one in parallel.
+     * 
+     * @param operand second operand
+     * @param operator operator to apply on every element of this matrix
+     */
+    public void applyParallel(MatrixGeneric<E> operand, BinaryOperator<E> operator) {
+        setParallel((j, i) -> operator.apply(get(j, i), operand.get(j, i)));
+    }
+    
+    /**
+     * Applies the given operator on every element of this matrix and the given
+     * matrix in parallel elementwise wrapping around.
+     * 
+     * @param operand second operand
+     * @param operator operator to apply on every element of the matrix
+     */
+    public void applyDifSizeParallel(MatrixGeneric<E> operand,
+            BinaryOperator<E> operator) {
+        setParallel((j, i) -> operator.apply(
+                get(j, i),
+                operand.get(j % getHeight(), i % getWidth())));
+    }
+    
+    /**
+     * Applies the given operator on every element of this matrix and returns
+     * the result in parallel.
+     * 
+     * @param operator operator to apply on every element of this matrix
+     * @return result of the operation
+     */
+    public MatrixGeneric<E> applyNewParallel(UnaryOperator<E> operator) {
+        final MatrixGeneric<E> newMatrix =
+                new MatrixGeneric<>(getHeight(), getWidth());
+        newMatrix.setParallel((j, i) -> operator.apply(get(j, i)));
+        
+        return newMatrix;
+    }
+    
+    /**
+     * Applies the given operator elementwise on every element of this matrix
+     * and the given one in parallel and returns the result.
+     * 
+     * @param operand second operand
+     * @param operator operator to apply on every element of the matricies
+     * @return result of the operation
+     */
+    public MatrixGeneric<E> applyNewParallel(MatrixGeneric<E> operand,
+            BinaryOperator<E> operator) {
+        final MatrixGeneric<E> newMatrix =
+                new MatrixGeneric<>(getHeight(), getWidth());
+        newMatrix.setParallel(
+                (j, i) -> operator.apply(get(j, i), operand.get(j, i)));
+        
+        return newMatrix;
+    }
+    
+    /**
+     * Applies the given operator on every element of this matrix and the given
+     * matrix in parallel elementwise wrapping around and returns the result.
+     * The result has as many rows and the matrix with more rows and as many
+     * columns as the matrix with more columns.
+     * 
+     * @param operand second operand
+     * @param operator operator to apply on every element of the matricies
+     * @return result of the operation
+     */
+    public MatrixGeneric<E> applyNewDifSizeParallel(MatrixGeneric<E> operand,
+            BinaryOperator<E> operator) {
+        
+        final MatrixGeneric<E> newMatrix = new MatrixGeneric<>(
+                Math.max(getHeight(), operand.getHeight()),
+                Math.max(getWidth(), operand.getWidth()));
+        
+        newMatrix.setParallel((j, i) -> {
+            final E value1 = get(j % getHeight(), i % getWidth());
+            final E value2 = operand.get(
+                    j % operand.getHeight(), i % operand.getWidth());
+            return operator.apply(value1, value2);
+        });
+        
+        return newMatrix;
     }
     
     
