@@ -398,7 +398,9 @@ public class Matrix implements Iterable<Double> {
      * @param operator operator to apply on every element of the matricies
      * @return result of the operation
      */
-    public Matrix applyNewDifSize(Matrix operand, DoubleBinaryOperator operator) {
+    public Matrix applyNewDifSize(Matrix operand,
+            DoubleBinaryOperator operator) {
+        
         return new Matrix(
                 Math.max(getHeight(), operand.getHeight()),
                 Math.max(getWidth(), operand.getWidth()),
@@ -428,7 +430,8 @@ public class Matrix implements Iterable<Double> {
      * @param operator operator to apply on every element of this matrix
      */
     public void applyParallel(Matrix operand, DoubleBinaryOperator operator) {
-        setParallel((j, i) -> operator.applyAsDouble(get(j, i), operand.get(j, i)));
+        setParallel((j, i) ->
+                operator.applyAsDouble(get(j, i), operand.get(j, i)));
     }
     
     /**
@@ -438,7 +441,9 @@ public class Matrix implements Iterable<Double> {
      * @param operand second operand
      * @param operator operator to apply on every element of the matrix
      */
-    public void applyDifSizeParallel(Matrix operand, DoubleBinaryOperator operator) {
+    public void applyDifSizeParallel(Matrix operand,
+            DoubleBinaryOperator operator) {
+        
         setParallel((j, i) -> operator.applyAsDouble(
                 get(j, i),
                 operand.get(j % getHeight(), i % getWidth())));
@@ -466,7 +471,9 @@ public class Matrix implements Iterable<Double> {
      * @param operator operator to apply on every element of the matricies
      * @return result of the operation
      */
-    public Matrix applyNewParallel(Matrix operand, DoubleBinaryOperator operator) {
+    public Matrix applyNewParallel(Matrix operand,
+            DoubleBinaryOperator operator) {
+        
         final Matrix newMatrix = new Matrix(getHeight(), getWidth());
         newMatrix.setParallel((j, i) ->
                 operator.applyAsDouble(get(j, i), operand.get(j, i)));
@@ -484,7 +491,9 @@ public class Matrix implements Iterable<Double> {
      * @param operator operator to apply on every element of the matricies
      * @return result of the operation
      */
-    public Matrix applyNewDifSizeParallel(Matrix operand, DoubleBinaryOperator operator) {
+    public Matrix applyNewDifSizeParallel(Matrix operand,
+            DoubleBinaryOperator operator) {
+        
         final Matrix newMatrix = new Matrix(
                 Math.max(getHeight(), operand.getHeight()),
                 Math.max(getWidth(), operand.getWidth()));

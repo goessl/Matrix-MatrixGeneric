@@ -4,6 +4,9 @@ MatrixGeneric class used to store and operate on generic matricies and Matrix
 class for mathematical usage with double values.
 The indices of the elements are zero indexed.
 
+This package also includes JMatrixPanel, which is an extension of JPanel and
+can display a matrix graphically.
+
 ## Usage
 
 The dimensions of both classes are imutable and must be known when calling
@@ -35,6 +38,7 @@ Done!
  - [ ] Argument validation
  - [ ] Implement Matrix as extension of MatrixGeneric
  - [x] Documentation
+ - [x] Add visual output
 
 ## License (MIT)
 

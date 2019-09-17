@@ -354,7 +354,9 @@ public class MatrixGeneric<E> implements Iterable<E> {
      * @param operand second operand
      * @param operator operator to apply on every element of this matrix
      */
-    public void applyParallel(MatrixGeneric<E> operand, BinaryOperator<E> operator) {
+    public void applyParallel(MatrixGeneric<E> operand,
+            BinaryOperator<E> operator) {
+        
         setParallel((j, i) -> operator.apply(get(j, i), operand.get(j, i)));
     }
     
