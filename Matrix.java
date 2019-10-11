@@ -339,6 +339,75 @@ public class Matrix implements Iterable<Double> {
         return result;
     }
     
+    /**
+     * Returns the determinant of this matrix.
+     * The determinant is calculated recursively with the Laplace expansion
+     * along the first row.
+     * 
+     * @return determinant of this matrix
+     */
+    public double determinant() {
+        if(getHeight() != getWidth()) {
+            throw new ArithmeticException(
+                    "determinant only defined for square matricies");
+        }
+        
+        
+        
+        if(getHeight() == 0) {
+            return 1;
+        }
+        
+        if(getHeight() == 1) {
+            return get(0, 0);
+        }
+        
+        if(getHeight() == 2) {
+            return get(0, 0)*get(1, 1) - get(0, 1)*get(1, 0);
+        }
+        
+        if(getHeight() == 3) {
+            return get(0, 0) * get(1, 1) * get(2, 2)
+                    + get(0, 1) * get(1, 2) * get(2, 0)
+                    + get(0, 2) * get(1, 0) * get(2, 1)
+                    - get(0, 2) * get(1, 1) * get(2, 0)
+                    - get(0, 1) * get(1, 0) * get(2, 2)
+                    - get(0, 0) * get(1, 2) * get(2, 1);
+        }
+        
+        
+        
+        double sum = 0;
+        for(int j=0; j<getWidth(); j++) {
+            final double sgn = (j % 2 == 0) ? (1) : (-1);
+            final Matrix under = rowColRem(0, j);
+            
+            sum += sgn * get(0, j) * under.determinant();
+        }
+        
+        return sum;
+    }
+    
+    /**
+     * Helper method for Laplace expansion in determinant().
+     * Returns a copy of this matrix with the specified row & column removed.
+     * 
+     * @param row row to be removed
+     * @param column column to be removed
+     * @return copy of this matrix with the specified row & column removed
+     */
+    private Matrix rowColRem(int row, int column) {
+        return new Matrix(getHeight()-1, getWidth()-1, (j, i) -> {
+            if(j >= row) {
+                j++;
+            }
+            if(i >= column) {
+                i++;
+            }
+            
+            return get(j, i);
+        });
+    }
     
     
     /**
