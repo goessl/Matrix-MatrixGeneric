@@ -77,7 +77,8 @@ public class MatrixGeneric<E> implements Iterable<E> {
      * @param other matrix to copy
      */
     public MatrixGeneric(MatrixGeneric<E> other) {
-        this(other.getHeight(), other.getWidth(), (j, i) -> other.get(j, i));
+        this(other.getHeight(), other.getWidth());
+        set(other);
     }
     
     /**
@@ -223,6 +224,15 @@ public class MatrixGeneric<E> implements Iterable<E> {
      */
     public void set(BiFunction<Integer, Integer, E> function) {
         forEachIndices((j, i) -> set(j, i, function.apply(j, i)));
+    }
+    
+    /**
+     * Replaces all elements with the values of the given matrix.
+     * 
+     * @param other other matrix to get values from
+     */
+    public void set(MatrixGeneric<E> other) {
+        setParallel((j, i) -> other.get(j, i));
     }
     
     /**

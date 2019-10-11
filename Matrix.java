@@ -32,6 +32,7 @@ import java.util.PrimitiveIterator;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.DoubleBinaryOperator;
+import java.util.function.DoubleConsumer;
 import java.util.function.DoubleSupplier;
 import java.util.function.DoubleUnaryOperator;
 import java.util.function.ToDoubleBiFunction;
@@ -77,7 +78,8 @@ public class Matrix implements Iterable<Double> {
      * @param other matrix to copy
      */
     public Matrix(Matrix other) {
-        this(other.getHeight(), other.getWidth(), (j, i) -> other.get(j, i));
+        this(other.getHeight(), other.getWidth());
+        set(other);
     }
     
     /**
@@ -227,6 +229,15 @@ public class Matrix implements Iterable<Double> {
     }
     
     /**
+     * Replaces all elements with the values of the given matrix.
+     * 
+     * @param other other matrix to get values from
+     */
+    public void set(Matrix other) {
+        setParallel((j, i) -> other.get(j, i));
+    }
+    
+    /**
      * Replaces all elements with the values returned from the given function
      * in parallel.
      * It recieves the position (row and column indices) of the element to
@@ -319,7 +330,7 @@ public class Matrix implements Iterable<Double> {
     /**
      * Returns the transpose of this matrix.
      * 
-     * @return Transpose of this matrix.
+     * @return transpose of this matrix.
      */
     public Matrix transpose() {
         final Matrix result = new Matrix(getWidth(), getHeight());
@@ -573,7 +584,7 @@ public class Matrix implements Iterable<Double> {
      * 
      * @param action action to be performed for each element
      */
-    public void forEachParallel(Consumer<? super Double> action) {
+    public void forEachParallel(DoubleConsumer action) {
         forEachIndicesParallel((j, i) -> action.accept(get(j, i)));
     }
     
