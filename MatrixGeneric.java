@@ -26,6 +26,8 @@
 
 package matrix;
 
+import java.awt.Color;
+import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -33,6 +35,7 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.stream.IntStream;
@@ -539,6 +542,27 @@ public class MatrixGeneric<E> implements Iterable<E> {
                         consumer.accept(j, i)));
     }
     
+    
+    /**
+     * Generates a BufferedImage by mapping the content of this matrix to the
+     * pixels of the image with the given colormap.
+     * 
+     * @param colorMap function that maps values of the matrix to colours
+     * @return image mapped with the content of this matrix
+     */
+    public BufferedImage toImage(Function<E, Color> colorMap) {
+        final BufferedImage image = new BufferedImage(getWidth(), getHeight(),
+                BufferedImage.TYPE_INT_RGB);
+        
+        forEachIndices((j, i) -> {
+            final E value = get(j, i);
+            final Color color = colorMap.apply(value);
+            
+            image.setRGB(i, j, color.getRGB());
+        });
+        
+        return image;
+    }
     
     /**
      * Returns a copy of this matrix in 2 dimensional array form

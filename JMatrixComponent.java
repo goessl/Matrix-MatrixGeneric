@@ -26,6 +26,7 @@
 
 package matrix;
 
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.EventQueue;
@@ -33,8 +34,8 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.util.function.Function;
+import javax.swing.JComponent;
 import javax.swing.JFrame;
-import javax.swing.JPanel;
 import javax.swing.WindowConstants;
 
 
@@ -45,7 +46,7 @@ import javax.swing.WindowConstants;
  * @author Sebastian Gössl
  * @version 1.0 17.9.2019
  */
-public class JMatrixPanel<E> extends JPanel {
+public class JMatrixComponent<E> extends JComponent {
     
     /**
      * Matrix to be displayed.
@@ -64,7 +65,7 @@ public class JMatrixPanel<E> extends JPanel {
      * @param matrix matrix to be displayed
      * @param colorMap function that maps values of the matrix to colours
      */
-    public JMatrixPanel(MatrixGeneric<E> matrix, Function<E, Color> colorMap) {
+    public JMatrixComponent(MatrixGeneric<E> matrix, Function<E, Color> colorMap) {
         super();
         this.matrix = matrix;
         this.colorMap = colorMap;
@@ -107,15 +108,15 @@ public class JMatrixPanel<E> extends JPanel {
         final MatrixGeneric<Double> matrix =
                 new MatrixGeneric<>(100, 100,
                         (j, i) -> (double)(j+i) / (100+100));
-        final Function<Double, Color> colorMap =
-                (x) -> Color.getHSBColor(
-                        -2f/3f * x.floatValue() + 2f/3f, 1f, 1f);
+        final Function<Double, Color> colorMap = (x) ->
+                Color.getHSBColor(-2f/3f * x.floatValue() + 2f/3f, 1f, 1f);
         
         EventQueue.invokeLater(() -> {
             final JFrame frame = new JFrame();
             frame.setDefaultCloseOperation(
                     WindowConstants.DISPOSE_ON_CLOSE);
-            frame.getContentPane().add(new JMatrixPanel(matrix, colorMap));
+            frame.getContentPane().add(new JMatrixComponent(matrix, colorMap),
+                    BorderLayout.CENTER);
             frame.pack();
             frame.setVisible(true);
         });
